@@ -110,7 +110,7 @@ class MyHome extends StatelessWidget {
         ],
       ), // AppBar
       body: Center(
-        child: const Text('Toggle the theme using the switch in the app bar.'),
+        child: const Text('Toggles the theme using the switch in the app bar.'),
       ), // Center
     ); // Scaffold
   }

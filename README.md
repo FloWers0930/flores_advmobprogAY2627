@@ -19,12 +19,8 @@ A flutter project that focuses on advance topics. Covering the web to mobile tra
 
 // Discussion: setState vs Provider
 //
-// setState - used in the counter screen
-// - It is only needed by the counter screen.
-// - other screens do not need access to it.
-// - It does not need to be shared across the application.
-//
-// Provider - used for the theme
-// - All screen may need access to it
-// - The settings affect all screens
-// - When switch to any theme it does not go back when switching screens
+// setState - is used when I only need to manage a small data inside one widget, like updating a counter or changing a button state. 
+
+// Provider - is used when I need to share data between different parts of my app, like changing the app theme or keeping user information available in different screens. 
+
+//I find setState() more easier to use for simple tasks, while Provider is better for bigger projects because it makes the code more organized. In short, I use setState() for local changes and Provider for data that needs to be access by multiple widgets.

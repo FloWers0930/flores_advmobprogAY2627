@@ -1,30 +1,55 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flores_advmobprog/main.dart';
+import 'package:flores_mobile/models/product_model.dart';
+import 'package:flores_mobile/providers/theme_provider.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('ThemeProvider changes dark mode value', () {
+    final provider = ThemeProvider();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(provider.isDark, isFalse);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    provider.setDarkMode(true);
+    expect(provider.isDark, isTrue);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    provider.setDarkMode(false);
+    expect(provider.isDark, isFalse);
+  });
+
+  test('Product model converts API JSON into a Dart object', () {
+    final product = Product.fromJson({
+      'id': 1,
+      'title': 'Sample Product',
+      'description': 'Sample Description',
+      'category': 'sample-category',
+      'price': 99.99,
+      'discountPercentage': 10,
+      'rating': 4.5,
+      'stock': 5,
+      'tags': ['sample'],
+      'brand': 'NU',
+      'sku': 'NU-001',
+      'weight': 1,
+      'dimensions': {'width': 1, 'height': 2, 'depth': 3},
+      'warrantyInformation': '1 year',
+      'shippingInformation': 'Ships tomorrow',
+      'availabilityStatus': 'In Stock',
+      'reviews': [],
+      'returnPolicy': '7 days',
+      'minimumOrderQuantity': 1,
+      'meta': {
+        'createdAt': '',
+        'updatedAt': '',
+        'barcode': '',
+        'qrCode': '',
+      },
+      'images': ['https://example.com/product.png'],
+      'thumbnail': 'https://example.com/thumb.png',
+    });
+
+    expect(product.id, 1);
+    expect(product.title, 'Sample Product');
+    expect(product.price, 99.99);
+    expect(product.dimensions.height, 2.0);
   });
 }

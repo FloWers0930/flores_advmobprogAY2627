@@ -1,6 +1,6 @@
 {
-    "name": "flores_advmobprog",
-    "short_name": "flores_advmobprog",
+    "name": "flores_mobile",
+    "short_name": "flores_mobile",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

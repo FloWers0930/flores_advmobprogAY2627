@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Allows ProductService to load the REST API in release builds. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="flores_advmobprog"
+        android:label="Bulldog Exchange"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

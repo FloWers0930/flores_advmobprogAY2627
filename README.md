@@ -1,70 +1,239 @@
-# John Lester M. Flores
-## INF 231 MWA
+# Lawrenz Dave Z. Flores
+
+## INF233 MWA
+
 ## CTADMOBL Advanced Mobile Programming
 
-A Flutter project that focuses on advanced mobile programming topics and mobile-to-web/API transactions.
+This repository contains my Flutter laboratory activities for Advanced Mobile Programming. The project focuses on working with APIs, organizing Flutter code using models, services, providers, screens, and reusable widgets, and adding features that make the application more interactive.
 
-## Lab Activity 2: discussion
+---
+
+## Lab Activity 2: Discussion
 
 ### Implemented Enhancements
 
-1. **Enhancement 1 - Search bar above the article/product list.**  
-   A search field was added above the product cards in `ProductScreen`. The application keeps the API result in memory and filters the displayed cards using the user's search text. Matching is case-insensitive and checks the product title, brand, and category. The search therefore updates the UI immediately without sending a new HTTP request for every character typed.
+For Lab Activity 2, I improved the product application by adding search, a product details screen, and a separate settings page.
 
-2. **Enhancement 2 - Details page when a card is clicked.**  
-   Each product card is wrapped with an `InkWell`. When the user taps a card, Flutter uses `Navigator.push` to open `ProductDetailScreen` and passes the selected `Product` object to it. The details page displays Bulldog Exchange / NU Manila merchandise with local product images, Philippine peso pricing, title, category, rating, availability, description, tags, product specifications, pickup information, return policy, and reviews.
+**Enhancement 1 - Search Bar**
 
-3. **Enhancement 3 - Settings page for the dark/light mode switch.**  
-   Theme selection was moved to a dedicated `SettingsScreen`. The settings icon in the Home screen opens the page. `ThemeProvider` stores whether dark mode is enabled and calls `notifyListeners()` when the switch changes. Because `MaterialApp` watches `ThemeProvider`, the selected light or dark theme is applied immediately throughout the application.
+I added a search bar above the product list in `ProductScreen`. It allows the user to search for products based on their title, brand, or category.
 
+The products are already loaded from the API, so the search only filters the existing list instead of sending another API request every time the user types something. This makes the search faster and simpler.
 
-### Bulldog Exchange / NU Manila Catalog Theme
+**Enhancement 2 - Product Details Screen**
 
-For the final laboratory presentation, the generic demo catalog was replaced with a National University Manila theme. The sample catalog includes NU Bulldogs shirts, an ID lace, hoodie, varsity socks, basketball jersey, Bulldog enamel pin, and cap. Product photos are bundled under `assets/images/products/` so the cards and details screen display the intended NU merchandise consistently. The catalog uses Philippine peso (`₱`) pricing and campus-pickup wording to better match the Bulldogs Exchange context.
+I made each product card clickable using `InkWell`. When a product is selected, the application opens `ProductDetailScreen` using `Navigator.push()`.
 
-### How the Model, Service, and Screen Interact to Render the API Endpoint
+The selected `Product` object is passed directly to the details screen. The screen then shows information such as the product name, price, category, rating, description, availability, tags, specifications, return policy, and reviews.
 
-The API flow follows a clear separation of responsibilities:
+I also customized the products to follow the NU Bulldogs Exchange theme.
 
-1. **Screen (`ProductScreen`)** - The screen starts the data request by calling `ProductService().getAllProducts()` in `initState()`. A `FutureBuilder<List<Product>>` listens to that request and renders loading, error, empty, or successful UI states. When data is available, the screen builds the product cards. The screen does not call the `http` package directly.
+**Enhancement 3 - Settings Page**
 
-2. **Service (`ProductService`)** - The service is responsible for communication with the REST API. It reads the API host from `assets/.env`, sends a `GET` request to `https://dummyjson.com/products?limit=10`, checks the HTTP status code, and decodes the response. Because the public laboratory endpoint contains generic demo products, the service then adapts the successful response into a National University Manila / Bulldogs Exchange sample catalog. The endpoint still controls the asynchronous success/error flow and supplies stable item IDs, while the presentation data is themed for the laboratory output.
+I moved the dark and light mode switch into its own `SettingsScreen`.
 
-3. **Model (`Product`)** - `Product.fromJson()` converts each adapted JSON map into strongly typed Dart properties such as `id`, `title`, `price`, `rating`, `images`, `reviews`, and dimensions. Nested model classes also convert nested data. This keeps JSON parsing out of the UI and allows the same model to be reused by the list and details screens.
+The Settings page can be opened using the settings icon in the Home screen. `ThemeProvider` stores the current theme setting and uses `notifyListeners()` whenever the user changes it.
 
-4. **Rendering and navigation** - The service returns `Future<List<Product>>` to `ProductScreen`. `FutureBuilder` receives the `List<Product>` and renders the Bulldog Exchange cards using bundled local images and Philippine peso prices. The search enhancement filters this list locally. When a card is selected, the same typed `Product` object is passed to `ProductDetailScreen`, so the details page renders the selected item without repeating the request.
+Because the application listens to `ThemeProvider`, the theme changes immediately throughout the app.
 
-The data flow can be summarized as:
+### Bulldog Exchange / NU Manila Theme
 
-`REST API -> ProductService -> Bulldog Exchange catalog adaptation -> Product.fromJson() -> List<Product> -> ProductScreen -> ProductDetailScreen`
+Instead of showing only generic products, I customized the project to look like a Bulldog Exchange application for National University Manila.
 
-### New Design Pattern Used in This Activity
+The sample products include NU shirts, ID lace, hoodie, varsity socks, basketball jersey, Bulldog pin, and cap.
 
-The activity uses a **Service Layer pattern with separation of concerns**. Instead of placing networking code, JSON conversion, and UI rendering inside one widget, each layer has one main responsibility:
+The product images are saved inside:
 
-- **Model layer** represents and converts application data.
-- **Service layer** handles API/network operations.
-- **Screen/UI layer** handles presentation, user interaction, loading states, searching, and navigation.
+`assets/images/products/`
 
-This structure is repository-style because the UI receives application objects from a separate data-access layer, although this project currently uses a concrete service directly rather than a separate repository interface. The advantage is maintainability: if the API endpoint or HTTP implementation changes, most changes stay inside `ProductService`; if the JSON structure changes, parsing is updated in the model; and UI changes remain in the screens.
+I also used Philippine peso (`₱`) prices and campus pickup information to make the application fit the NU Bulldogs Exchange concept.
 
-For theme state, the project also uses **Provider with `ChangeNotifier`**, which follows an observer-style state-management approach. `SettingsScreen` changes the state in `ThemeProvider`, `notifyListeners()` informs listening widgets, and `MaterialApp` rebuilds with the selected `ThemeMode`.
+### How the Model, Service, and Screen Work Together
+
+The project separates the API data, networking logic, and user interface into different parts.
+
+`ProductService` is responsible for requesting product data from the API.
+
+It sends a GET request to the product endpoint and processes the JSON response.
+
+`Product.fromJson()` converts the JSON data into a `Product` object. This means the UI does not need to manually read JSON values.
+
+`ProductScreen` calls `ProductService().getAllProducts()` and uses `FutureBuilder` to wait for the response.
+
+While the request is still loading, the application displays a loading indicator. If the request fails, an error message is displayed. If it succeeds, the product cards are shown.
+
+When a product is selected, the same `Product` object is passed to `ProductDetailScreen`.
+
+The general flow is:
+
+`REST API -> ProductService -> Product.fromJson() -> ProductScreen -> ProductDetailScreen`
+
+### Design Pattern Used
+
+For this activity, I used separation of concerns.
+
+Instead of putting everything inside one Dart file, the project separates responsibilities into models, services, providers, screens, and widgets.
+
+The model handles the structure of the data.
+
+The service handles API requests.
+
+The screens handle what the user sees and interacts with.
+
+Provider is also used for shared application state. For example, `ThemeProvider` manages the dark and light mode of the application.
+
+This structure makes the code easier to read, maintain, and update.
 
 ### Source-Code Comments
 
-The implementation is marked in the Dart source files using comments beginning with:
+I added comments in the source code showing where each required enhancement was implemented.
 
-- `Enhancement 1:` for the search feature
-- `Enhancement 2:` for card-to-details navigation and the details screen
-- `Enhancement 3:` for the Settings page and theme switch
+`Enhancement 1:` is used for the search feature.
 
-## Git Instructions for Lab Activity 2
+`Enhancement 2:` is used for the product details feature.
 
-Run these commands from the repository root folder after verifying the application:
+`Enhancement 3:` is used for the Settings page and theme feature.
+
+---
+
+## Lab Activity 3: Discussion
+
+### Implemented Enhancements
+
+For Lab Activity 3, I extended the previous project by adding a shopping cart system, reusing the existing product details screen, and changing the Chat navigation into a FloatingActionButton.
+
+**Enhancement 1 - Cart Screen and Reusable Detail Screen**
+
+I created a new `CartScreen` that displays the products inside the cart.
+
+The Cart screen shows the product image, title, price, quantity, subtotal, total number of products, total quantity, and the total cart amount.
+
+Each cart item is also clickable.
+
+When I tap a product inside the cart, the application opens the same `ProductDetailScreen` that is already used in `ProductScreen`.
+
+I reused the existing details screen instead of creating another details page just for the cart. This keeps the project cleaner and avoids repeating the same UI code.
+
+**Enhancement 2 - Chat FloatingActionButton**
+
+In the previous activity, Chat was part of the bottom navigation.
+
+For Lab Activity 3, I removed Chat from the bottom navigation and changed it into a `FloatingActionButton`.
+
+The main navigation now contains Shop, Cart, and Profile.
+
+The Chat button appears while the user is on the Shop or Profile screen. When the Cart screen is selected, the Chat FloatingActionButton is hidden as required by the activity.
+
+**Enhancement 3 - Cart by User ID and Add to Cart**
+
+I integrated the DummyJSON Cart API using a specific user ID.
+
+`CartService.getCartByUserId()` sends a GET request to:
+
+`/carts/user/{userId}`
+
+This allows the application to load the cart that belongs to a particular user.
+
+I also added an Add to Cart button inside `ProductDetailScreen`.
+
+The user can choose a quantity and press Add to Cart. The product ID, quantity, and user ID are passed to `CartProvider`, which then calls `CartService.addToCart()`.
+
+The service sends a POST request to:
+
+`/carts/add`
+
+DummyJSON only simulates adding a cart and does not permanently save the changes. Because of this, I also used `CartProvider` to keep the added Bulldog Exchange products in the application's local state while the app is running.
+
+This allows the product to immediately appear in the Cart screen while still demonstrating the required API request.
+
+### How the Cart Model, Service, Provider, and Screen Work Together
+
+The Cart feature follows the same organized structure used by the product feature.
+
+The `Cart` model represents the whole cart. It stores values such as the cart ID, user ID, products, totals, total products, and total quantity.
+
+The `CartProduct` model represents each product inside the cart. It stores the product ID, title, price, quantity, discount, subtotal, and thumbnail.
+
+`CartService` handles the API requests for carts. It contains methods for getting a cart by user ID, getting a cart by cart ID, and adding products to a cart.
+
+`CartProvider` is used between the service and the screens. It stores the current cart and manages changes such as adding products, increasing quantity, decreasing quantity, removing products, and recalculating totals.
+
+Whenever the cart changes, `CartProvider` calls `notifyListeners()` so the Cart screen can automatically update.
+
+`CartScreen` listens to `CartProvider` and displays the latest cart information.
+
+When a cart item is tapped, the selected product is passed to the existing `ProductDetailScreen`.
+
+The cart data flow is:
+
+`Cart API -> CartService -> Cart.fromJson() -> CartProvider -> CartScreen -> ProductDetailScreen`
+
+The Add to Cart flow is:
+
+`ProductDetailScreen -> CartProvider -> CartService -> /carts/add -> CartProvider -> CartScreen`
+
+### Using getById in the Cart Endpoint
+
+I also added a `getCartById()` method inside `CartService`.
+
+The method receives a cart ID:
+
+`getCartById(int cartId)`
+
+It then sends a GET request to:
+
+`$host/carts/$cartId`
+
+For example, if the cart ID is `1`, the request becomes:
+
+`https://dummyjson.com/carts/1`
+
+After the API returns the response, `jsonDecode()` converts the JSON into a Dart map.
+
+The map is then passed to `Cart.fromJson()` to create a `Cart` object that can be used by the application.
+
+The difference between `getCartById()` and `getCartByUserId()` is simple.
+
+`getCartById()` searches for one specific cart using its cart ID.
+
+`getCartByUserId()` searches for the carts that belong to a specific user.
+
+For this activity, I used the user ID endpoint to display only one user's cart.
+
+### Updated Design Pattern
+
+Lab Activity 3 keeps the same organized structure from Lab Activity 2 but adds another Provider for the cart.
+
+The project now contains several layers:
+
+- **Model Layer** - contains `Product`, `Cart`, and `CartProduct`, which represent the application's data.
+- **Service Layer** - contains `ProductService` and `CartService`, which handle API communication.
+- **Provider Layer** - contains `ThemeProvider` for the theme and `CartProvider` for cart state.
+- **Screen Layer** - contains screens such as `ProductScreen`, `ProductDetailScreen`, `CartScreen`, `SettingsScreen`, and `HomeScreen`.
+- **Widget Layer** - contains reusable widgets that can be used by different screens.
+
+Using this structure makes the project easier to understand because each part of the application has its own responsibility.
+
+The API code stays inside the services, data conversion stays inside the models, shared state is handled by Provider, and the UI stays inside the screens.
+
+### Source-Code Comments
+
+I also added comments in the Dart files to identify the Lab Activity 3 enhancements.
+
+`Enhancement 1:` is used for the Cart screen and reusable detail screen.
+
+`Enhancement 2:` is used for the Chat FloatingActionButton and hiding it on the Cart screen.
+
+`Enhancement 3:` is used for cart-by-user-ID and Add to Cart API integration.
+
+---
+
+## Git Instructions for Lab Activity 3
+
+After checking that the application works correctly, I used:
 
 ```bash
-git checkout -b lab_act2
 git add .
-git commit -m "lab_act2"
-git push origin lab_act2
+git commit -m "lab_act3"
+git push origin lab_act3
 ```

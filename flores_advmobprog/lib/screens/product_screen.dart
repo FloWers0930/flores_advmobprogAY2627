@@ -1,17 +1,16 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-// Models
-import '../models/product_model.dart';
+// models
+import '../models/product.dart';
 
-// Services
+// services
 import '../services/product_service.dart';
 
-// Screens
-import 'product_detail_screen.dart';
+// screens
+import 'detail_screen.dart';
 
-// Widgets
+// widgets
 import '../widgets/custom_text.dart';
 
 class ProductScreen extends StatefulWidget {
@@ -24,8 +23,7 @@ class ProductScreen extends StatefulWidget {
 class _ProductScreenState extends State<ProductScreen> {
   late final Future<List<Product>> _productsFuture;
 
-  // Enhancement 1: store the search text entered above the article/product
-  // card list so the already-fetched API data can be filtered locally.
+  // Search
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -45,31 +43,27 @@ class _ProductScreenState extends State<ProductScreen> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+        padding: EdgeInsets.symmetric(
+          horizontal: 16.w,
+          vertical: 16.h,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Enhancement 1: search bar added above the card list. Typing here
-            // rebuilds the list and shows only matching title/brand/category.
+            // Search bar
             TextField(
               controller: _searchController,
-              textInputAction: TextInputAction.search,
               onChanged: (value) {
-                setState(() => _searchQuery = value.trim());
+                setState(() {
+                  _searchQuery = value;
+                });
               },
               decoration: InputDecoration(
-                hintText: 'Search products',
-                prefixIcon: Icon(Icons.search, size: 20.sp),
-                suffixIcon: _searchQuery.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Clear search',
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      ),
+                hintText: 'Search',
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 20.sp,
+                ),
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 16.w,
                   vertical: 12.h,
@@ -79,18 +73,10 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
               ),
             ),
-            SizedBox(height: 12.h),
-            CustomText(
-              text: 'Bulldog Exchange · NU Manila',
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w700,
-            ),
-            SizedBox(height: 4.h),
-            CustomText(
-              text: 'Campus merchandise for Nationalians',
-              fontSize: 12.sp,
-            ),
+
             SizedBox(height: 16.h),
+
+            // Products
             FutureBuilder<List<Product>>(
               future: _productsFuture,
               builder: (context, snapshot) {
@@ -105,60 +91,35 @@ class _ProductScreenState extends State<ProductScreen> {
 
                 if (snapshot.hasError) {
                   return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.r),
-                      child: Column(
-                        children: [
-                          Icon(Icons.error_outline, size: 42.sp),
-                          SizedBox(height: 8.h),
-                          CustomText(
-                            text: 'Unable to load products.',
-                            fontSize: 14.sp,
-                            fontWeight: FontWeight.w600,
-                            textAlign: TextAlign.center,
-                          ),
-                          SizedBox(height: 4.h),
-                          CustomText(
-                            text: '${snapshot.error}',
-                            fontSize: 12.sp,
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
+                    child: CustomText(
+                      text: 'Error: ${snapshot.error}',
+                      fontSize: 14.sp,
                     ),
                   );
                 }
 
                 final allProducts = snapshot.data ?? [];
 
-                // Enhancement 1: filtering is case-insensitive and does not
-                // make another HTTP request for every character typed.
-                final normalizedQuery = _searchQuery.toLowerCase();
-                final products = normalizedQuery.isEmpty
+                // Filter products
+                final products = _searchQuery.trim().isEmpty
                     ? allProducts
-                    : allProducts.where((product) {
-                        return product.title.toLowerCase().contains(
-                                  normalizedQuery,
-                                ) ||
-                            product.brand.toLowerCase().contains(
-                                  normalizedQuery,
-                                ) ||
-                            product.category.toLowerCase().contains(
-                                  normalizedQuery,
-                                );
-                      }).toList();
+                    : allProducts
+                          .where(
+                            (product) => product.title
+                                .toLowerCase()
+                                .contains(
+                                  _searchQuery.toLowerCase(),
+                                ),
+                          )
+                          .toList();
 
                 if (products.isEmpty) {
                   return Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32.h),
-                      child: CustomText(
-                        text: _searchQuery.isEmpty
-                            ? 'No products found.'
-                            : 'No results for "$_searchQuery".',
-                        fontSize: 14.sp,
-                        textAlign: TextAlign.center,
-                      ),
+                    child: CustomText(
+                      text: _searchQuery.isEmpty
+                          ? 'No products found.'
+                          : 'No results for "$_searchQuery".',
+                      fontSize: 14.sp,
                     ),
                   );
                 }
@@ -167,7 +128,8 @@ class _ProductScreenState extends State<ProductScreen> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: products.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 10.w,
                     mainAxisSpacing: 10.h,
@@ -183,39 +145,58 @@ class _ProductScreenState extends State<ProductScreen> {
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: InkWell(
-                        // Enhancement 2: clicking/tapping a card opens a
-                        // dedicated details page for the selected API object.
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) =>
-                                  ProductDetailScreen(product: product),
+                                  DetailScreen(product: product),
                             ),
                           );
                         },
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
                           children: [
+                            // PRODUCT IMAGE
                             Expanded(
-                              child: _buildProductImage(product.thumbnail),
+                              child: Image.asset(
+                                product.thumbnail,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) {
+                                  return Center(
+                                    child: Icon(
+                                      Icons.image_not_supported,
+                                      size: 40.sp,
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
+
+                            // PRODUCT INFORMATION
                             Padding(
                               padding: EdgeInsets.all(8.r),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   CustomText(
                                     text: product.title,
                                     fontSize: 14.sp,
                                     fontWeight: FontWeight.bold,
                                     maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    overflow:
+                                        TextOverflow.ellipsis,
                                   ),
+
                                   SizedBox(height: 4.h),
+
                                   CustomText(
                                     text:
-                                        '₱${product.price.toStringAsFixed(2)}',
+                                        '\$${product.price.toStringAsFixed(2)}',
                                     fontSize: 13.sp,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -232,34 +213,6 @@ class _ProductScreenState extends State<ProductScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildProductImage(String source) {
-    if (source.startsWith('assets/')) {
-      return Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(6.r),
-        child: Image.asset(
-          source,
-          fit: BoxFit.contain,
-          errorBuilder: (_, _, _) => Center(
-            child: Icon(Icons.image_not_supported_outlined, size: 32.sp),
-          ),
-        ),
-      );
-    }
-
-    return CachedNetworkImage(
-      imageUrl: source,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      placeholder: (context, url) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      errorWidget: (context, url, error) => Center(
-        child: Icon(Icons.image_not_supported_outlined, size: 32.sp),
       ),
     );
   }

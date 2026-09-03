@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-// Screens
-import 'cart_screen.dart';
 import 'product_screen.dart';
+import 'cart_screen.dart';
+import 'profile_screen.dart';
 
-// Widgets
+import '../constants.dart';
+import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
-
   const HomeScreen({super.key, this.username = ''});
 
   @override
@@ -19,166 +19,104 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-
   final PageController _pageController = PageController();
-
-  static const List<String> _pageTitles = ['Shop', 'Cart', 'Profile'];
+  String _profileName = 'Profile';
 
   @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadProfileName();
+  }
+
+  // Enhancement 3: the Profile tab's header uses the saved user's first
+  // name, read the same way ProfileScreen reads it (via UserService).
+  Future<void> _loadProfileName() async {
+    final user = await UserService().getUser();
+    if (!mounted || user.firstName.isEmpty) return;
+    setState(() {
+      _profileName = user.firstName;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final onProfileTab = _selectedIndex == 2;
+
     return PopScope(
       canPop: false,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           elevation: 2,
-          title: _selectedIndex == 0
+          backgroundColor: onProfileTab ? brandNavy : null,
+          foregroundColor: onProfileTab ? Colors.white : null,
+          title: (_selectedIndex == 0)
               ? Image.asset('assets/images/nubdexchange_logo.png', scale: 11.sp)
               : CustomText(
-                  text: _pageTitles[_selectedIndex],
+                  text: (_selectedIndex == 1) ? 'Cart' : _profileName,
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w600,
+                  color: onProfileTab ? Colors.white : null,
                 ),
           actions: [
             IconButton(
-              tooltip: 'Settings',
               icon: Icon(Icons.settings, size: 24.sp),
-              onPressed: () {
-                Navigator.pushNamed(context, '/settings');
-              },
+              onPressed: () => Navigator.pushNamed(context, '/settings'),
             ),
           ],
         ),
-
         body: PageView(
           physics: const NeverScrollableScrollPhysics(),
           controller: _pageController,
+          // Enhancement 1: Cart is now a tab (index 1) instead of a pushed
+          // screen, sharing this Scaffold's AppBar/bottom nav.
+          children: const <Widget>[
+            ProductScreen(),
+            CartScreen(),
+            ProfileScreen(),
+          ],
           onPageChanged: (page) {
             setState(() {
               _selectedIndex = page;
             });
           },
-          children: const [
-            ProductScreen(),
-
-            // Enhancement 1:
-            // Cart screen renders the cart belonging to one user.
-            CartScreen(),
-
-            _PlaceholderPage(
-              icon: Icons.person_outline,
-              message: 'Profile page',
-            ),
-          ],
         ),
-
-        // Enhancement 2:
-        // Chat is now a FloatingActionButton.
-        //
-        // It is hidden only when Cart is selected, as required
-        // by Lab Activity 3.
+        bottomNavigationBar: BottomNavigationBar(
+          showSelectedLabels: false, //selected item
+          showUnselectedLabels: false, //unselected item
+          onTap: _onTappedBar,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.shop_2), label: 'Shop'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart),
+              label: 'Cart',
+            ),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          ],
+          currentIndex: _selectedIndex,
+        ),
+        // Enhancement 2: the old "Chat" bottom nav tab is now a
+        // FloatingActionButton, hidden while the Cart tab is active.
         floatingActionButton: _selectedIndex == 1
             ? null
             : FloatingActionButton(
-                tooltip: 'Chat',
-                onPressed: _openChat,
-                child: const Icon(Icons.chat_bubble_outline),
+                backgroundColor: Colors.deepPurple.shade50,
+                foregroundColor: Colors.deepPurple.shade700,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Chat coming soon')),
+                  );
+                },
+                child: const Icon(Icons.chat),
               ),
-
-        // Put Chat on the right instead of occupying the middle
-        // of the navigation bar. This allows Cart to be perfectly centered.
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-
-        // Shop, Cart and Profile now receive equal space.
-        // Because there are exactly three items, Cart is centered.
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _selectedIndex,
-          onDestinationSelected: _onTappedBar,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.shop_2_outlined),
-              selectedIcon: Icon(Icons.shop_2),
-              label: 'Shop',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.shopping_cart_outlined),
-              selectedIcon: Icon(Icons.shopping_cart),
-              label: 'Cart',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile',
-            ),
-          ],
-        ),
       ),
     );
   }
 
   void _onTappedBar(int value) {
-    _pageController.jumpToPage(value);
-
     setState(() {
       _selectedIndex = value;
     });
-  }
-
-  // Enhancement 2:
-  // Chat is opened using the FloatingActionButton instead
-  // of being another bottom navigation destination.
-  void _openChat() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const _ChatPage()),
-    );
-  }
-}
-
-class _ChatPage extends StatelessWidget {
-  const _ChatPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: CustomText(
-          text: 'Chat',
-          fontSize: 20.sp,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      body: const _PlaceholderPage(
-        icon: Icons.chat_bubble_outline,
-        message: 'Chat page',
-      ),
-    );
-  }
-}
-
-class _PlaceholderPage extends StatelessWidget {
-  final IconData icon;
-  final String message;
-
-  const _PlaceholderPage({required this.icon, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 48.sp),
-          SizedBox(height: 8.h),
-          CustomText(text: message, fontSize: 16.sp),
-        ],
-      ),
-    );
+    _pageController.jumpToPage(value);
   }
 }

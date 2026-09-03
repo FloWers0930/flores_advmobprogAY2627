@@ -1,21 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
 
 import '../models/cart.dart';
-import '../models/product_model.dart';
-import '../providers/cart_provider.dart';
+import '../models/product.dart';
+import '../services/cart_service.dart';
 import '../services/product_service.dart';
+import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
-import 'product_detail_screen.dart';
+import 'detail_screen.dart';
 
-/// Enhancement 1:
-/// CartScreen renders the Cart API data managed by CartProvider.
-///
-/// Every cart item is clickable and opens the SAME ProductDetailScreen
-/// already used by ProductScreen, satisfying the screen-widget reuse
-/// requirement of Lab Activity 3.
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
@@ -24,196 +18,209 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  final CartService _cartService = CartService();
   final ProductService _productService = ProductService();
+
+  Cart? _cart;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _loadUserCart();
+  }
 
-    // Enhancement 3:
-    // Load only the cart belonging to the configured user ID.
-    //
-    // addPostFrameCallback is used because CartProvider calls
-    // notifyListeners(), which should not happen while the first widget
-    // build is still in progress.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
+  Future<void> _loadUserCart() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
-      context.read<CartProvider>().loadUserCart();
-    });
+    try {
+      final user = await UserService().getUser();
+      final carts = await _cartService.getCartsByUser(user.id);
+
+      if (!mounted) return;
+
+      setState(() {
+        _cart = carts.isNotEmpty ? carts.first : null;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final cartProvider = context.watch<CartProvider>();
-
     return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: cartProvider.loadUserCart,
-        child: _buildBody(cartProvider),
-      ),
+      child: RefreshIndicator(onRefresh: _loadUserCart, child: _buildBody()),
     );
   }
 
-  Widget _buildBody(CartProvider cartProvider) {
-    if (cartProvider.isLoading && cartProvider.products.isEmpty) {
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          SizedBox(height: 220.h),
-          const Center(child: CircularProgressIndicator()),
+          SizedBox(height: 180.h),
+          Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.r),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, size: 50.sp),
+                  SizedBox(height: 12.h),
+                  CustomText(
+                    text: 'Failed to load cart',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  SizedBox(height: 8.h),
+                  CustomText(
+                    text: _errorMessage!,
+                    fontSize: 13.sp,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16.h),
+                  ElevatedButton(
+                    onPressed: _loadUserCart,
+                    child: const Text('Try Again'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       );
     }
 
-    if (cartProvider.products.isEmpty) {
+    final cart = _cart;
+
+    if (cart == null || cart.products.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 32.h),
         children: [
-          SizedBox(height: 100.h),
-          Icon(Icons.shopping_cart_outlined, size: 72.sp),
-          SizedBox(height: 16.h),
-          CustomText(
-            text: 'Your cart is empty',
-            fontSize: 20.sp,
-            fontWeight: FontWeight.bold,
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 8.h),
-          CustomText(
-            text: 'Open a Bulldog Exchange product and tap Add to Cart.',
-            fontSize: 14.sp,
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 16.h),
-
-          // Enhancement 3:
-          // Display which user ID is currently being used for the Cart API.
-          CustomText(
-            text: 'Cart API user ID: ${cartProvider.userId}',
-            fontSize: 12.sp,
-            textAlign: TextAlign.center,
-          ),
-
-          if (cartProvider.errorMessage != null) ...[
-            SizedBox(height: 12.h),
-            CustomText(
-              text: 'API note: ${_cleanError(cartProvider.errorMessage!)}',
-              fontSize: 11.sp,
-              textAlign: TextAlign.center,
+          SizedBox(height: 180.h),
+          Center(
+            child: Column(
+              children: [
+                Icon(Icons.shopping_cart_outlined, size: 70.sp),
+                SizedBox(height: 16.h),
+                CustomText(
+                  text: 'Your cart is empty',
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+                SizedBox(height: 8.h),
+                CustomText(
+                  text: 'Add some products to your cart.',
+                  fontSize: 14.sp,
+                ),
+              ],
             ),
-          ],
+          ),
         ],
       );
     }
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 110.h),
+      padding: EdgeInsets.all(16.r),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CustomText(
-                    text: 'My Cart',
-                    fontSize: 22.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  SizedBox(height: 3.h),
-                  CustomText(
-                    text:
-                        'User ${cartProvider.userId} · '
-                        '${cartProvider.totalQuantity} item(s)',
-                    fontSize: 13.sp,
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: 'Refresh cart',
-              onPressed: cartProvider.isLoading
-                  ? null
-                  : () {
-                      cartProvider.loadUserCart();
-                    },
-              icon: cartProvider.isLoading
-                  ? SizedBox(
-                      width: 20.w,
-                      height: 20.w,
-                      child: const CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.refresh),
-            ),
-          ],
+        CustomText(
+          text: 'Shopping Cart',
+          fontSize: 24.sp,
+          fontWeight: FontWeight.bold,
+        ),
+        SizedBox(height: 4.h),
+        CustomText(
+          text:
+              '${cart.totalQuantity} item${cart.totalQuantity == 1 ? '' : 's'}',
+          fontSize: 14.sp,
         ),
         SizedBox(height: 16.h),
 
-        // Enhancement 1:
-        // The items rendered from the cart are clickable and navigate to the
-        // same ProductDetailScreen used by the main product/article list.
-        ...cartProvider.products.map(
-          (cartProduct) => _buildCartCard(context, cartProvider, cartProduct),
-        ),
+        ...cart.products.map((cartProduct) => _buildCartCard(cartProduct)),
+
+        SizedBox(height: 12.h),
+
+        _buildSummary(cart),
 
         SizedBox(height: 16.h),
-        _buildSummary(cartProvider),
 
-        if (cartProvider.errorMessage != null) ...[
-          SizedBox(height: 12.h),
-          Card(
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Checkout is not available yet.')),
+              );
+            },
             child: Padding(
-              padding: EdgeInsets.all(12.r),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline, size: 18.sp),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: CustomText(
-                      text:
-                          'The local cart is still available. '
-                          'API message: '
-                          '${_cleanError(cartProvider.errorMessage!)}',
-                      fontSize: 11.sp,
-                    ),
-                  ),
-                ],
+              padding: EdgeInsets.symmetric(vertical: 12.h),
+              child: CustomText(
+                text: 'Proceed to Checkout',
+                fontSize: 15.sp,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ],
+        ),
       ],
     );
   }
 
-  Widget _buildCartCard(
-    BuildContext context,
-    CartProvider cartProvider,
-    CartProduct cartProduct,
-  ) {
+  Widget _buildCartCard(CartProduct cartProduct) {
     return Card(
       margin: EdgeInsets.only(bottom: 12.h),
-      elevation: 2,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
       child: InkWell(
-        // Enhancement 1:
-        // A cart item reuses ProductDetailScreen instead of creating another
-        // separate details widget.
+        borderRadius: BorderRadius.circular(12.r),
         onTap: () => _openProductDetails(cartProduct),
         child: Padding(
           padding: EdgeInsets.all(12.r),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildProductImage(cartProduct.thumbnail),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10.r),
+                child: CachedNetworkImage(
+                  imageUrl: cartProduct.thumbnail,
+                  width: 90.w,
+                  height: 90.w,
+                  fit: BoxFit.cover,
+                  placeholder: (_, _) => Container(
+                    width: 90.w,
+                    height: 90.w,
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(),
+                  ),
+                  errorWidget: (_, _, _) => Container(
+                    width: 90.w,
+                    height: 90.w,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.image_not_supported_outlined,
+                      size: 32.sp,
+                    ),
+                  ),
+                ),
+              ),
+
               SizedBox(width: 12.w),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,55 +228,70 @@ class _CartScreenState extends State<CartScreen> {
                     CustomText(
                       text: cartProduct.title,
                       fontSize: 15.sp,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
+
                     SizedBox(height: 6.h),
+
                     CustomText(
-                      text: '₱${cartProduct.price.toStringAsFixed(2)}',
+                      text: '\$${cartProduct.price.toStringAsFixed(2)}',
                       fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.bold,
                     ),
-                    SizedBox(height: 4.h),
-                    CustomText(
-                      text:
-                          'Subtotal: '
-                          '₱${cartProduct.discountedTotal.toStringAsFixed(2)}',
-                      fontSize: 12.sp,
-                    ),
-                    SizedBox(height: 10.h),
+
+                    SizedBox(height: 8.h),
+
                     Row(
                       children: [
-                        _quantityButton(
-                          tooltip: 'Decrease quantity',
-                          icon: Icons.remove,
-                          onPressed: () {
-                            cartProvider.decreaseQuantity(cartProduct.id);
-                          },
+                        IconButton(
+                          onPressed: cartProduct.quantity > 1
+                              ? () => _changeQuantity(
+                                  cartProduct,
+                                  cartProduct.quantity - 1,
+                                )
+                              : null,
+                          icon: const Icon(Icons.remove),
+                          iconSize: 18.sp,
+                          constraints: BoxConstraints(
+                            minWidth: 32.w,
+                            minHeight: 32.h,
+                          ),
+                          padding: EdgeInsets.zero,
                         ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12.w),
+
+                        Container(
+                          width: 35.w,
+                          alignment: Alignment.center,
                           child: CustomText(
                             text: '${cartProduct.quantity}',
                             fontSize: 14.sp,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        _quantityButton(
-                          tooltip: 'Increase quantity',
-                          icon: Icons.add,
-                          onPressed: () {
-                            cartProvider.increaseQuantity(cartProduct.id);
-                          },
-                        ),
-                        const Spacer(),
+
                         IconButton(
-                          tooltip: 'Remove product',
-                          icon: Icon(Icons.delete_outline, size: 21.sp),
-                          onPressed: () {
-                            _confirmRemove(cartProvider, cartProduct);
-                          },
+                          onPressed: () => _changeQuantity(
+                            cartProduct,
+                            cartProduct.quantity + 1,
+                          ),
+                          icon: const Icon(Icons.add),
+                          iconSize: 18.sp,
+                          constraints: BoxConstraints(
+                            minWidth: 32.w,
+                            minHeight: 32.h,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+
+                        const Spacer(),
+
+                        IconButton(
+                          onPressed: () => _confirmRemove(cartProduct),
+                          icon: const Icon(Icons.delete_outline),
+                          iconSize: 21.sp,
+                          padding: EdgeInsets.zero,
                         ),
                       ],
                     ),
@@ -283,117 +305,183 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _quantityButton({
-    required String tooltip,
-    required IconData icon,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: 34.w,
-      height: 34.w,
-      child: IconButton(
-        tooltip: tooltip,
-        padding: EdgeInsets.zero,
-        onPressed: onPressed,
-        icon: Icon(icon, size: 18.sp),
-      ),
-    );
-  }
+  Widget _buildSummary(Cart cart) {
+    final hasDiscount = cart.total != cart.discountedTotal;
 
-  Widget _buildSummary(CartProvider cartProvider) {
     return Card(
-      elevation: 2,
       child: Padding(
         padding: EdgeInsets.all(16.r),
         child: Column(
           children: [
-            _summaryRow('Products', '${cartProvider.totalProducts}'),
-            SizedBox(height: 6.h),
-            _summaryRow('Total quantity', '${cartProvider.totalQuantity}'),
-            SizedBox(height: 6.h),
-            _summaryRow(
-              'Original total',
-              '₱${cartProvider.total.toStringAsFixed(2)}',
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CustomText(text: 'Products', fontSize: 14.sp),
+                CustomText(text: '${cart.totalProducts}', fontSize: 14.sp),
+              ],
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: 12.h),
-              child: const Divider(height: 1),
+
+            SizedBox(height: 8.h),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CustomText(text: 'Quantity', fontSize: 14.sp),
+                CustomText(text: '${cart.totalQuantity}', fontSize: 14.sp),
+              ],
             ),
-            _summaryRow(
-              'Cart total',
-              '₱${cartProvider.discountedTotal.toStringAsFixed(2)}',
-              bold: true,
+
+            SizedBox(height: 8.h),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CustomText(text: 'Subtotal', fontSize: 14.sp),
+                CustomText(
+                  text: '\$${cart.total.toStringAsFixed(2)}',
+                  fontSize: 14.sp,
+                ),
+              ],
             ),
+
+            if (hasDiscount) ...[
+              SizedBox(height: 8.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CustomText(
+                    text: 'Discounted Total',
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  CustomText(
+                    text: '\$${cart.discountedTotal.toStringAsFixed(2)}',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ],
+              ),
+            ] else ...[
+              SizedBox(height: 8.h),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CustomText(
+                    text: 'Total',
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  CustomText(
+                    text: '\$${cart.discountedTotal.toStringAsFixed(2)}',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _summaryRow(String label, String value, {bool bold = false}) {
-    return Row(
-      children: [
-        Expanded(
-          child: CustomText(
-            text: label,
-            fontSize: bold ? 15.sp : 13.sp,
-            fontWeight: bold ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        CustomText(
-          text: value,
-          fontSize: bold ? 17.sp : 13.sp,
-          fontWeight: bold ? FontWeight.bold : FontWeight.w600,
-        ),
-      ],
-    );
-  }
+  Future<void> _changeQuantity(CartProduct cartProduct, int newQuantity) async {
+    if (newQuantity < 1) return;
 
-  Widget _buildProductImage(String source) {
-    final placeholder = Container(
-      width: 90.w,
-      height: 100.h,
-      alignment: Alignment.center,
-      child: Icon(Icons.shopping_bag_outlined, size: 36.sp),
-    );
+    try {
+      final user = await UserService().getUser();
 
-    if (source.isEmpty) {
-      return placeholder;
-    }
+      final products = _cart?.products.map((product) {
+        return {
+          'id': product.id,
+          'quantity': product.id == cartProduct.id
+              ? newQuantity
+              : product.quantity,
+        };
+      }).toList();
 
-    if (source.startsWith('assets/')) {
-      return SizedBox(
-        width: 90.w,
-        height: 100.h,
-        child: Image.asset(
-          source,
-          fit: BoxFit.contain,
-          errorBuilder: (_, _, _) => placeholder,
-        ),
+      if (products == null) return;
+
+      final updatedCart = await _cartService.addToCart(
+        userId: user.id,
+        products: products,
       );
-    }
 
-    return SizedBox(
-      width: 90.w,
-      height: 100.h,
-      child: CachedNetworkImage(
-        imageUrl: source,
-        fit: BoxFit.contain,
-        placeholder: (_, _) =>
-            const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        errorWidget: (_, _, _) => placeholder,
-      ),
-    );
+      if (!mounted) return;
+
+      setState(() {
+        _cart = updatedCart;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update quantity: $e')));
+    }
   }
 
-  /// Enhancement 1:
-  /// Resolve the selected CartProduct to our Product model before opening the
-  /// existing ProductDetailScreen.
-  ///
-  /// Bulldog Exchange products are matched by their product ID. If an API
-  /// cart contains a DummyJSON product outside our local Bulldog catalog, a
-  /// safe Product object is built from the available CartProduct data so the
-  /// SAME detail screen can still be reused.
+  Future<void> _confirmRemove(CartProduct cartProduct) async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Remove Product'),
+          content: Text('Remove "${cartProduct.title}" from your cart?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldRemove != true) return;
+
+    try {
+      final user = await UserService().getUser();
+
+      final remainingProducts = _cart?.products
+          .where((product) => product.id != cartProduct.id)
+          .map((product) => {'id': product.id, 'quantity': product.quantity})
+          .toList();
+
+      if (remainingProducts == null) return;
+
+      if (remainingProducts.isEmpty) {
+        if (!mounted) return;
+
+        setState(() {
+          _cart = null;
+        });
+        return;
+      }
+
+      final updatedCart = await _cartService.addToCart(
+        userId: user.id,
+        products: remainingProducts,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _cart = updatedCart;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to remove product: $e')));
+    }
+  }
+
   Future<void> _openProductDetails(CartProduct cartProduct) async {
     Product selectedProduct;
 
@@ -408,15 +496,11 @@ class _CartScreenState extends State<CartScreen> {
       selectedProduct = _productFromCartProduct(cartProduct);
     }
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ProductDetailScreen(product: selectedProduct),
-      ),
+      MaterialPageRoute(builder: (_) => DetailScreen(product: selectedProduct)),
     );
   }
 
@@ -424,65 +508,26 @@ class _CartScreenState extends State<CartScreen> {
     return Product(
       id: cartProduct.id,
       title: cartProduct.title,
-      description: 'Product loaded from the Cart API for the selected user.',
-      category: 'Cart Item',
+      description: '',
+      category: '',
       price: cartProduct.price,
       discountPercentage: cartProduct.discountPercentage,
       rating: 0,
-      stock: cartProduct.quantity,
-      tags: const ['Cart API'],
-      brand: 'Bulldog Exchange',
-      sku: 'CART-${cartProduct.id}',
+      stock: 0,
+      tags: const [],
+      brand: '',
+      sku: '',
       weight: 0,
       dimensions: ProductDimensions(width: 0, height: 0, depth: 0),
       warrantyInformation: '',
-      shippingInformation: 'Available for campus pickup at NU Manila',
-      availabilityStatus: 'In Cart',
+      shippingInformation: '',
+      availabilityStatus: '',
       reviews: const [],
-      returnPolicy: 'Subject to Bulldogs Exchange store policy',
+      returnPolicy: '',
       minimumOrderQuantity: 1,
       meta: ProductMeta(createdAt: '', updatedAt: '', barcode: '', qrCode: ''),
-      images: cartProduct.thumbnail.isEmpty
-          ? const []
-          : [cartProduct.thumbnail],
+      images: [cartProduct.thumbnail],
       thumbnail: cartProduct.thumbnail,
     );
-  }
-
-  Future<void> _confirmRemove(
-    CartProvider cartProvider,
-    CartProduct cartProduct,
-  ) async {
-    final shouldRemove = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Remove item?'),
-          content: Text('Remove ${cartProduct.title} from your cart?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Remove'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldRemove == true) {
-      cartProvider.removeProduct(cartProduct.id);
-    }
-  }
-
-  String _cleanError(String message) {
-    return message.replaceFirst('Exception: ', '');
   }
 }

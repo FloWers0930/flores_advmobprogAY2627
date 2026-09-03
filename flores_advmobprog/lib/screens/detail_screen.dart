@@ -1,44 +1,30 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
 
-// Models
-import '../models/product_model.dart';
+// models
+import '../models/product.dart';
 
-// Providers
-import '../providers/cart_provider.dart';
+// services
+import '../services/cart_service.dart';
+import '../services/user_service.dart';
 
-// Widgets
+// widgets
 import '../widgets/custom_text.dart';
 
-/// Lab Activity 2 Enhancement 2:
-/// This is the dedicated details screen opened when a product card is tapped.
-///
-/// Lab Activity 3 Enhancement 1:
-/// The SAME ProductDetailScreen is also reused when a cart item is tapped.
-///
-/// Lab Activity 3 Enhancement 3:
-/// Products can now be added to the selected user's cart through CartProvider.
-class ProductDetailScreen extends StatefulWidget {
+// Enhancement 2: details page shown when a product card is tapped, displaying
+// the full product info (images, price, description, specs, reviews) fetched
+// from the API via the Product model.
+class DetailScreen extends StatefulWidget {
   final Product product;
-
-  const ProductDetailScreen({super.key, required this.product});
+  const DetailScreen({super.key, required this.product});
 
   @override
-  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+  State<DetailScreen> createState() => _DetailScreenState();
 }
 
-class _ProductDetailScreenState extends State<ProductDetailScreen> {
+class _DetailScreenState extends State<DetailScreen> {
   final PageController _imageController = PageController();
-
   int _imageIndex = 0;
-
-  // Enhancement 3:
-  // Quantity that will be passed when adding the product to the cart.
-  int _quantity = 1;
-
-  bool _isAddingToCart = false;
 
   @override
   void dispose() {
@@ -46,16 +32,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     super.dispose();
   }
 
+  // Enhancement 3: cart is scoped to the signed-in user's real id. dummyjson's
+  // /carts/add simulates the update and returns the recomputed cart, but
+  // does not persist it server-side.
+  Future<void> _addToCart(BuildContext context, Product product) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final user = await UserService().getUser();
+      final cart = await CartService().addToCart(
+        userId: user.id,
+        products: [
+          {'id': product.id, 'quantity': 1},
+        ],
+      );
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '${product.title} added · cart total \$${cart.discountedTotal.toStringAsFixed(2)}',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to add to cart: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
-
     final images = product.images.isNotEmpty
         ? product.images
-        : product.thumbnail.isNotEmpty
-        ? [product.thumbnail]
-        : <String>[];
-
+        : [product.thumbnail];
     final discountedPrice =
         product.price * (1 - product.discountPercentage / 100);
 
@@ -67,7 +76,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           fontWeight: FontWeight.w600,
         ),
       ),
-
+      // Enhancement 3: https://dummyjson.com/carts/add — adds this product
+      // to the demo user's cart by passing its id/quantity to CartService.
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(16.r),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _addToCart(context, product),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 10.h),
+                child: CustomText(
+                  text: 'Add to Cart',
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.only(bottom: 24.h),
@@ -75,7 +104,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildImageGallery(images),
-
               Padding(
                 padding: EdgeInsets.all(16.r),
                 child: Column(
@@ -83,41 +111,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   children: [
                     CustomText(
                       text: product.brand.isNotEmpty
-                          ? '${product.brand} · NU Manila · ${product.category}'
+                          ? '${product.brand} · ${product.category}'
                           : product.category,
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w500,
                     ),
-
                     SizedBox(height: 6.h),
-
                     CustomText(
                       text: product.title,
                       fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                     ),
-
                     SizedBox(height: 10.h),
-
                     Row(
                       children: [
                         CustomText(
-                          text: '₱${discountedPrice.toStringAsFixed(2)}',
+                          text: '\$${discountedPrice.toStringAsFixed(2)}',
                           fontSize: 20.sp,
                           fontWeight: FontWeight.bold,
                         ),
-
                         if (product.discountPercentage > 0) ...[
                           SizedBox(width: 8.w),
-
                           CustomText(
-                            text: '₱${product.price.toStringAsFixed(2)}',
+                            text: '\$${product.price.toStringAsFixed(2)}',
                             fontSize: 14.sp,
                             fontStyle: FontStyle.italic,
                           ),
-
                           SizedBox(width: 8.w),
-
                           Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: 6.w,
@@ -137,55 +157,38 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ],
                       ],
                     ),
-
                     SizedBox(height: 8.h),
-
                     Row(
                       children: [
                         Icon(Icons.star, color: Colors.amber, size: 18.sp),
-
                         SizedBox(width: 4.w),
-
                         CustomText(
                           text:
-                              '${product.rating.toStringAsFixed(2)} · '
-                              '${product.reviews.length} reviews',
+                              '${product.rating.toStringAsFixed(2)} · ${product.reviews.length} reviews',
                           fontSize: 13.sp,
                         ),
-
                         SizedBox(width: 12.w),
-
-                        Expanded(
-                          child: CustomText(
-                            text: product.availabilityStatus.isNotEmpty
-                                ? product.availabilityStatus
-                                : product.stock > 0
-                                ? 'In Stock (${product.stock})'
-                                : 'Out of Stock',
-                            fontSize: 13.sp,
-                            fontWeight: FontWeight.w600,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        CustomText(
+                          text: product.availabilityStatus.isNotEmpty
+                              ? product.availabilityStatus
+                              : (product.stock > 0
+                                    ? 'In Stock (${product.stock})'
+                                    : 'Out of Stock'),
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w600,
                         ),
                       ],
                     ),
-
                     SizedBox(height: 16.h),
-
                     CustomText(
                       text: 'Description',
                       fontSize: 15.sp,
                       fontWeight: FontWeight.bold,
                     ),
-
                     SizedBox(height: 6.h),
-
                     CustomText(text: product.description, fontSize: 14.sp),
-
                     if (product.tags.isNotEmpty) ...[
                       SizedBox(height: 16.h),
-
                       Wrap(
                         spacing: 8.w,
                         runSpacing: 8.h,
@@ -198,55 +201,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             .toList(),
                       ),
                     ],
-
                     SizedBox(height: 20.h),
-
                     CustomText(
                       text: 'Details',
                       fontSize: 15.sp,
                       fontWeight: FontWeight.bold,
                     ),
-
                     SizedBox(height: 6.h),
-
                     _buildDetailRow('SKU', product.sku),
-
-                    if (product.weight > 0)
-                      _buildDetailRow('Weight', '${product.weight} g'),
-
-                    if (product.dimensions.width > 0 ||
-                        product.dimensions.height > 0 ||
-                        product.dimensions.depth > 0)
-                      _buildDetailRow(
-                        'Dimensions',
-                        '${product.dimensions.width} x '
-                            '${product.dimensions.height} x '
-                            '${product.dimensions.depth} cm',
-                      ),
-
-                    if (product.minimumOrderQuantity > 0)
-                      _buildDetailRow(
-                        'Minimum Order',
-                        '${product.minimumOrderQuantity}',
-                      ),
-
+                    _buildDetailRow('Weight', '${product.weight} g'),
+                    _buildDetailRow(
+                      'Dimensions',
+                      '${product.dimensions.width} x ${product.dimensions.height} x ${product.dimensions.depth} cm',
+                    ),
+                    _buildDetailRow(
+                      'Minimum Order',
+                      '${product.minimumOrderQuantity}',
+                    ),
                     _buildDetailRow('Warranty', product.warrantyInformation),
-
                     _buildDetailRow('Shipping', product.shippingInformation),
-
                     _buildDetailRow('Return Policy', product.returnPolicy),
-
                     if (product.reviews.isNotEmpty) ...[
                       SizedBox(height: 20.h),
-
                       CustomText(
                         text: 'Reviews',
                         fontSize: 15.sp,
                         fontWeight: FontWeight.bold,
                       ),
-
                       SizedBox(height: 8.h),
-
                       ...product.reviews.map(
                         (review) => Padding(
                           padding: EdgeInsets.only(bottom: 12.h),
@@ -260,14 +242,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     fontSize: 13.sp,
                                     fontWeight: FontWeight.w600,
                                   ),
-
                                   SizedBox(width: 8.w),
-
                                   Row(
                                     children: List.generate(
                                       5,
-                                      (index) => Icon(
-                                        index < review.rating
+                                      (i) => Icon(
+                                        i < review.rating
                                             ? Icons.star
                                             : Icons.star_border,
                                         color: Colors.amber,
@@ -277,9 +257,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   ),
                                 ],
                               ),
-
                               SizedBox(height: 4.h),
-
                               CustomText(text: review.comment, fontSize: 13.sp),
                             ],
                           ),
@@ -293,143 +271,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
       ),
-
-      // Enhancement 3:
-      // The selected product ID and quantity are passed through CartProvider,
-      // which calls CartService and the DummyJSON /carts/add endpoint.
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 10.h),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 8,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Decrease quantity',
-                      onPressed: _quantity > 1
-                          ? () {
-                              setState(() {
-                                _quantity--;
-                              });
-                            }
-                          : null,
-                      icon: const Icon(Icons.remove),
-                    ),
-
-                    SizedBox(
-                      width: 28.w,
-                      child: CustomText(
-                        text: '$_quantity',
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.bold,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-
-                    IconButton(
-                      tooltip: 'Increase quantity',
-                      onPressed: () {
-                        setState(() {
-                          _quantity++;
-                        });
-                      },
-                      icon: const Icon(Icons.add),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(width: 12.w),
-
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _isAddingToCart ? null : _addToCart,
-                  icon: _isAddingToCart
-                      ? SizedBox(
-                          width: 18.w,
-                          height: 18.w,
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.add_shopping_cart),
-                  label: Text(_isAddingToCart ? 'Adding...' : 'Add to Cart'),
-                  style: FilledButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16.h),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
-  /// Enhancement 3:
-  /// Adds the selected Product to the currently configured user's cart.
-  Future<void> _addToCart() async {
-    if (_isAddingToCart) {
-      return;
-    }
-
-    setState(() {
-      _isAddingToCart = true;
-    });
-
-    final cartProvider = context.read<CartProvider>();
-
-    await cartProvider.addProduct(product: widget.product, quantity: _quantity);
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _isAddingToCart = false;
-    });
-
-    final apiError = cartProvider.errorMessage;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(
-            apiError == null
-                ? '${widget.product.title} added to cart.'
-                : '${widget.product.title} added to the local cart. '
-                      'The API request could not be completed.',
-          ),
-          action: SnackBarAction(label: 'OK', onPressed: () {}),
-        ),
-      );
-  }
-
   Widget _buildDetailRow(String label, String value) {
-    if (value.trim().isEmpty) {
-      return const SizedBox.shrink();
-    }
-
+    if (value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: EdgeInsets.only(bottom: 4.h),
       child: Row(
@@ -443,7 +289,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               fontWeight: FontWeight.w500,
             ),
           ),
-
           Expanded(
             child: CustomText(text: value, fontSize: 13.sp),
           ),
@@ -452,48 +297,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget _buildProductImage(String source) {
-    if (source.isEmpty) {
-      return Center(
-        child: Icon(Icons.image_not_supported_outlined, size: 48.sp),
-      );
-    }
-
-    if (source.startsWith('assets/')) {
-      return Padding(
-        padding: EdgeInsets.all(12.r),
-        child: Image.asset(
-          source,
-          fit: BoxFit.contain,
-          width: double.infinity,
-          errorBuilder: (_, _, _) => Center(
-            child: Icon(Icons.image_not_supported_outlined, size: 48.sp),
-          ),
-        ),
-      );
-    }
-
-    return CachedNetworkImage(
-      imageUrl: source,
-      fit: BoxFit.contain,
-      width: double.infinity,
-      placeholder: (_, _) => const Center(child: CircularProgressIndicator()),
-      errorWidget: (_, _, _) =>
-          Center(child: Icon(Icons.image_not_supported_outlined, size: 48.sp)),
-    );
-  }
-
   Widget _buildImageGallery(List<String> images) {
-    if (images.isEmpty) {
-      return SizedBox(
-        height: 280.h,
-        width: double.infinity,
-        child: Center(
-          child: Icon(Icons.image_not_supported_outlined, size: 64.sp),
-        ),
-      );
-    }
-
     return Stack(
       alignment: Alignment.bottomCenter,
       children: [
@@ -504,16 +308,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             controller: _imageController,
             itemCount: images.length,
             onPageChanged: (index) {
-              setState(() {
-                _imageIndex = index;
-              });
+              setState(() => _imageIndex = index);
             },
             itemBuilder: (context, index) {
-              return _buildProductImage(images[index]);
+              return Image.asset(
+                images[index],
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(
+                    child: Icon(Icons.image_not_supported, size: 48.sp),
+                  );
+                },
+              );
             },
           ),
         ),
-
         if (images.length > 1)
           Padding(
             padding: EdgeInsets.only(bottom: 8.h),

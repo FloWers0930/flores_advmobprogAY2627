@@ -1,4 +1,4 @@
-# Lawrenz Dave Z. Flores, MIT
+# Lawrenz Dave Z. Flores
 
 ## INF233
 
@@ -10,7 +10,7 @@ A Flutter project focused on API integration, authentication, and displaying use
 
 This activity focuses on connecting the Flutter app to an API and organizing the project using services, models, and screens. I implemented persistent authentication using `shared_preferences`, created a `UserService` for handling API requests, and added a `User` model for managing user information. The profile screen displays the saved user data, while the cart uses the user's `userId` to show the correct cart information.
 
-## Lab Activity 4: Discussion
+## Discussion
 
 The `UserService`, `User` model, and screens work together to handle and display data from the API. The service handles API requests and authentication, the model organizes the user data, and the screens display the information to the user.
 

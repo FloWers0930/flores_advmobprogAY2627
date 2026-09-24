@@ -1,5 +1,5 @@
-# John Lester M. Flores
-## INF 231 MWA
+# Lawrenz Dave Z. Flores
+## INF 233 MWA
 ## CTADMOBL Advanced Mobile Programming
 
 A Flutter project that focuses on advanced mobile programming topics and mobile-to-web/API transactions.

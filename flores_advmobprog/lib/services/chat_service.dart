@@ -61,4 +61,18 @@ class ChatService {
         .orderBy('timestamp', descending: true)
         .snapshots();
   }
+
+  Future<void> markMessageAsRead(String receiverId, String messageId) async {
+    final String currentUserId = _auth.currentUser!.uid;
+    List<String> ids = [currentUserId, receiverId];
+    ids.sort();
+    String chatRoomId = ids.join("_");
+
+    await _firestore
+        .collection('chat_rooms')
+        .doc(chatRoomId)
+        .collection('messages')
+        .doc(messageId)
+        .update({'isRead': true});
+  }
 }

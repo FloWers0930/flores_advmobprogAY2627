@@ -6,6 +6,7 @@ class MessageModel {
   final String receiverId;
   final String message;
   final Timestamp timestamp;
+  final bool isRead;
 
   MessageModel({
     required this.senderId,
@@ -13,6 +14,7 @@ class MessageModel {
     required this.receiverId,
     required this.message,
     required this.timestamp,
+    this.isRead = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +24,7 @@ class MessageModel {
       'receiverId': receiverId,
       'message': message,
       'timestamp': timestamp,
+      'isRead': isRead,
     };
   }
 
@@ -32,6 +35,7 @@ class MessageModel {
       receiverId: map['receiverId'] ?? '',
       message: map['message'] ?? '',
       timestamp: map['timestamp'] as Timestamp,
+      isRead: map['isRead'] ?? false,
     );
   }
 }

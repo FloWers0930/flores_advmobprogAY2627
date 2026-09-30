@@ -99,6 +99,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
         final docs = snapshot.data?.docs ?? [];
         
+        // Mark unread messages from the other user as read
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          for (var doc in docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            if (data['senderId'] != currentUserId && !(data['isRead'] ?? false)) {
+              _chatService.markMessageAsRead(widget.receiverUserID, doc.id);
+            }
+          }
+        });
+        
         if (docs.isEmpty) {
           return Center(
             child: CustomText(
@@ -113,17 +123,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
           itemCount: docs.length,
           itemBuilder: (context, index) {
-            final data = docs[index].data() as Map<String, dynamic>;
-            return _buildMessageItem(data);
+            final doc = docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final isPending = doc.metadata.hasPendingWrites;
+            return _buildMessageItem(context, data, isPending);
           },
         );
       },
     );
   }
 
-  Widget _buildMessageItem(Map<String, dynamic> data) {
+  Widget _buildMessageItem(BuildContext context, Map<String, dynamic> data, bool isPending) {
     final isMe = data['senderId'] == _auth.currentUser?.uid;
     final message = data['message'] as String? ?? '';
+    final bool isRead = data['isRead'] ?? false;
+    
+    // Parse timestamp
+    String timeString = '';
+    if (data['timestamp'] != null) {
+      final dateTime = (data['timestamp'] as Timestamp).toDate();
+      timeString = TimeOfDay.fromDateTime(dateTime).format(context);
+    }
 
     return TweenAnimationBuilder(
       duration: const Duration(milliseconds: 300),
@@ -144,9 +164,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h).copyWith(bottom: 6.h),
               decoration: BoxDecoration(
-                color: isMe ? brandNavy : Colors.grey.shade200,
+                color: isMe ? const Color(0xFF6B4E90) : Colors.grey.shade200, // Matching the purple color from screenshot
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(16.r),
                   topRight: Radius.circular(16.r),
@@ -161,30 +181,43 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   )
                 ]
               ),
-              child: CustomText(
-                text: message,
-                color: isMe ? Colors.white : Colors.black87,
-                fontSize: 15.sp,
+              child: Column(
+                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                children: [
+                  CustomText(
+                    text: message,
+                    color: isMe ? Colors.white : Colors.black87,
+                    fontSize: 15.sp,
+                  ),
+                  SizedBox(height: 2.h),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CustomText(
+                        text: timeString,
+                        color: isMe ? Colors.white70 : Colors.black54,
+                        fontSize: 10.sp,
+                      ),
+                      if (isMe) ...[
+                        SizedBox(width: 4.w),
+                        Icon(
+                          isPending ? Icons.access_time : (isRead ? Icons.done_all : Icons.done),
+                          size: 14.sp,
+                          color: isPending ? Colors.white54 : (isRead ? Colors.blue.shade300 : Colors.white70),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
               ),
             ),
-            if (isMe)
+            if (isMe && isRead)
               Padding(
-                padding: EdgeInsets.only(top: 4.h, right: 4.w),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.check_circle, 
-                      size: 12.sp, 
-                      color: Colors.grey.shade400,
-                    ),
-                    SizedBox(width: 4.w),
-                    CustomText(
-                      text: 'Sent',
-                      fontSize: 10.sp,
-                      color: Colors.grey,
-                    ),
-                  ],
+                padding: EdgeInsets.only(top: 2.h, right: 4.w),
+                child: CustomText(
+                  text: 'Seen',
+                  fontSize: 11.sp,
+                  color: const Color(0xFF6B4E90), // Matching the purple color from screenshot
                 ),
               ),
           ],

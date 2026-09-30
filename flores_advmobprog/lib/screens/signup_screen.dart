@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // constants
@@ -116,6 +117,15 @@ class _SignupScreenState extends State<SignupScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('age', _ageController.text.trim());
       await prefs.setString('contactNo', _contactNoController.text.trim());
+
+      // 4. Save user data to Firestore for Chat feature
+      FirebaseFirestore.instance.collection('Users').doc(fbUser.uid).set({
+        'uid': fbUser.uid,
+        'email': _emailController.text.trim(),
+        'firstName': _fNameController.text.trim(),
+        'lastName': _lNameController.text.trim(),
+        'username': _usernameController.text.trim(),
+      }).catchError((e) => print('Firestore write failed: $e'));
 
       if (!mounted) return;
       setState(() => _isLoading = false);

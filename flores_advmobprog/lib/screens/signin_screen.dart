@@ -27,7 +27,6 @@ class _SigninScreenState extends State<SigninScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
-  bool _useFirebase = false;
 
   @override
   void dispose() {
@@ -42,20 +41,24 @@ class _SigninScreenState extends State<SigninScreen> {
       _isLoading = true;
     });
     if (_formKey.currentState!.validate()) {
+      final identifier = _usernameController.text.trim();
+      final password = _passwordController.text;
+
       try {
-        if (_useFirebase) {
-          // Firebase email/password sign-in.
-          await userService.signIn(
-            _usernameController.text.trim(),
-            _passwordController.text,
-          );
-        } else {
-          // DummyJSON sign-in (existing flow).
-          final response = await userService.loginUser(
-            _usernameController.text,
-            _passwordController.text,
-          );
-          // Save user data to SharedPreferences
+        // Smart Login: Attempt Firebase first
+        bool isFirebaseSuccess = false;
+        try {
+          // Firebase requires a somewhat valid email format to not throw immediately,
+          // but we'll just catch any exception and fallback if it fails.
+          await userService.signIn(identifier, password);
+          isFirebaseSuccess = true;
+        } catch (_) {
+          // Firebase failed (e.g. invalid email format, wrong password, user not found)
+        }
+
+        if (!isFirebaseSuccess) {
+          // Fallback to DummyJSON
+          final response = await userService.loginUser(identifier, password);
           await userService.saveUserData(response);
         }
 
@@ -65,21 +68,13 @@ class _SigninScreenState extends State<SigninScreen> {
         });
 
         Navigator.pushReplacementNamed(context, '/home');
-      } on fb_auth.FirebaseAuthException catch (e) {
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Firebase login failed.')),
-        );
       } catch (e) {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: ${e.toString()}')),
+          const SnackBar(content: Text('Login failed: Invalid credentials or user not found.')),
         );
       }
     } else {
@@ -123,50 +118,13 @@ class _SigninScreenState extends State<SigninScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 24.h),
+                SizedBox(height: 32.h),
 
-                // Login type toggle
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CustomText(
-                      text: 'Login with: ',
-                      fontSize: 13.sp,
-                    ),
-                    ChoiceChip(
-                      label: CustomText(
-                        text: 'DummyJSON',
-                        fontSize: 12.sp,
-                        color: !_useFirebase ? Colors.white : null,
-                      ),
-                      selected: !_useFirebase,
-                      selectedColor: brandNavy,
-                      onSelected: (_) =>
-                          setState(() => _useFirebase = false),
-                    ),
-                    SizedBox(width: 8.w),
-                    ChoiceChip(
-                      label: CustomText(
-                        text: 'Firebase',
-                        fontSize: 12.sp,
-                        color: _useFirebase ? Colors.white : null,
-                      ),
-                      selected: _useFirebase,
-                      selectedColor: brandNavy,
-                      onSelected: (_) =>
-                          setState(() => _useFirebase = true),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 24.h),
                 TextFormField(
                   controller: _usernameController,
-                  decoration: _fieldDecoration(
-                    _useFirebase ? 'Email' : 'Username',
-                  ),
+                  decoration: _fieldDecoration('Username or Email'),
                   validator: (value) => (value == null || value.isEmpty)
-                      ? (_useFirebase ? 'Email is required' : 'Username is required')
+                      ? 'Username or Email is required'
                       : null,
                 ),
                 SizedBox(height: 16.h),

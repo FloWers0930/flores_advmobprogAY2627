@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'product_screen.dart';
 import 'cart_screen.dart';
 import 'profile_screen.dart';
+import 'chat_screen.dart';
 
 import '../constants.dart';
 import '../services/user_service.dart';
@@ -103,8 +104,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor: Colors.deepPurple.shade50,
                 foregroundColor: Colors.deepPurple.shade700,
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Chat coming soon')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ChatScreen()),
                   );
                 },
                 child: const Icon(Icons.chat),

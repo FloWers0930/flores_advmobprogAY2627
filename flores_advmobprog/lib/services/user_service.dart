@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../constants.dart';
 import 'package:flores_mobile/models/user.dart' as app_user;
@@ -56,9 +57,10 @@ class UserService {
 
       // Persist to SharedPreferences so the rest of the app works.
       final fbUser = credential.user!;
+      final username = fbUser.displayName ?? email.split('@').first;
       await saveUserData({
         'id': fbUser.uid.hashCode,
-        'username': fbUser.displayName ?? email.split('@').first,
+        'username': username,
         'email': fbUser.email ?? email,
         'firstName': fbUser.displayName ?? '',
         'lastName': '',
@@ -67,6 +69,15 @@ class UserService {
         'accessToken': await fbUser.getIdToken() ?? '',
         'refreshToken': fbUser.refreshToken ?? '',
       });
+
+      // Ensure user is in Firestore so Chat works for previously registered users
+      FirebaseFirestore.instance.collection('Users').doc(fbUser.uid).set({
+        'uid': fbUser.uid,
+        'email': fbUser.email ?? email,
+        'firstName': fbUser.displayName ?? '',
+        'lastName': '',
+        'username': username,
+      }, SetOptions(merge: true)).catchError((e) => print('Firestore write failed: $e'));
       await _saveLoginType(LoginType.firebase);
       return credential;
     } on fb_auth.FirebaseAuthException {

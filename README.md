@@ -237,3 +237,13 @@ git add .
 git commit -m "lab_act3"
 git push origin lab_act3
 ```
+
+
+## Lab Activity 5: discussion
+
+The authentication workflow begins in "signin_screen.dart", where a "ChoiceChip" toggle determines the login path. If the user selects Firebase, the form triggers "UserService().signIn()", calling "signInWithEmailAndPassword". If DummyJSON is selected, it routes to "UserService().loginUser()", sending a POST request to the mocked API. Both paths culminate by setting the "LoginType" enum and calling "saveUserData()", which persists the response (including tokens) to "SharedPreferences". The signup flow, handled exclusively in "signup_screen.dart", only applies to Firebase; it collects user details, calls "UserService().createAccount()", sets the user's "displayName", and manually saves additional fields like "age" and "contactNo" to "SharedPreferences" since the project does not currently use Firestore for custom data modeling.
+
+The primary idea behind the "UserService" implementation is to provide a single, unified abstraction layer that hides the underlying differences between the DummyJSON API and Firebase Auth. By wrapping both authentication providers behind common interfaces and maintaining a shared "SharedPreferences" contract for the "User" model, the rest of the app remains largely agnostic to the backend. The "LoginType" enum is crucial here; it allows screens like "profile_screen.dart" to branch behavior—such as rendering action tiles for updating the username, changing passwords, and deleting accounts only for Firebase users—without duplicating the core UI logic or user data fetching.
+
+Implementing Firebase Auth provides tangible benefits over the mocked DummyJSON API in this app. Firebase enables real session and token lifecycle management natively, whereas the DummyJSON API only provided static token responses. Furthermore, Firebase provides built-in mechanisms for secure re-authentication, which we leverage in "UserService().resetPasswordFromCurrentPassword()" and "UserService().deleteAccount()" to securely prompt the user before destructive actions. These native security flows and account management capabilities are something the read-only DummyJSON API fundamentally cannot support, transforming the app's authentication from a simple simulation into a production-ready implementation.
+

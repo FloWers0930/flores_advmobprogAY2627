@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "655442033183",
+    "project_id": "advmobprog-firebase-eb27c",
+    "storage_bucket": "advmobprog-firebase-eb27c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:655442033183:android:a7c21dc3687d1cebb6332a",
+        "android_client_info": {
+          "package_name": "com.example.flores_advmobprog"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtOtB8gmeveSVdF8WkLt2u9ixDJnJXNSg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

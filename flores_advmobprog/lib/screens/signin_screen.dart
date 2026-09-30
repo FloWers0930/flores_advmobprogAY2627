@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 
 // constants
 import '../constants.dart';
@@ -13,6 +14,7 @@ import '../widgets/custom_text.dart';
 // Enhancement 2: sign-in UI built around UserService's login/save flow —
 // the form only handles input/validation/loading state, all the
 // authentication logic (loginUser + saveUserData) lives in UserService.
+// Now also supports Firebase email/password sign-in via a toggle.
 class SigninScreen extends StatefulWidget {
   const SigninScreen({super.key});
 
@@ -25,6 +27,7 @@ class _SigninScreenState extends State<SigninScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _useFirebase = false;
 
   @override
   void dispose() {
@@ -40,20 +43,36 @@ class _SigninScreenState extends State<SigninScreen> {
     });
     if (_formKey.currentState!.validate()) {
       try {
-        final response = await userService.loginUser(
-          _usernameController.text,
-          _passwordController.text,
-        );
-
-        // Save user data to SharedPreferences
-        await userService.saveUserData(response);
+        if (_useFirebase) {
+          // Firebase email/password sign-in.
+          await userService.signIn(
+            _usernameController.text.trim(),
+            _passwordController.text,
+          );
+        } else {
+          // DummyJSON sign-in (existing flow).
+          final response = await userService.loginUser(
+            _usernameController.text,
+            _passwordController.text,
+          );
+          // Save user data to SharedPreferences
+          await userService.saveUserData(response);
+        }
 
         if (!mounted) return;
         setState(() {
           _isLoading = false;
         });
 
-        Navigator.pushReplacementNamed(context, '/home', arguments: response);
+        Navigator.pushReplacementNamed(context, '/home');
+      } on fb_auth.FirebaseAuthException catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Firebase login failed.')),
+        );
       } catch (e) {
         if (!mounted) return;
         setState(() {
@@ -104,12 +123,50 @@ class _SigninScreenState extends State<SigninScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 40.h),
+                SizedBox(height: 24.h),
+
+                // Login type toggle
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CustomText(
+                      text: 'Login with: ',
+                      fontSize: 13.sp,
+                    ),
+                    ChoiceChip(
+                      label: CustomText(
+                        text: 'DummyJSON',
+                        fontSize: 12.sp,
+                        color: !_useFirebase ? Colors.white : null,
+                      ),
+                      selected: !_useFirebase,
+                      selectedColor: brandNavy,
+                      onSelected: (_) =>
+                          setState(() => _useFirebase = false),
+                    ),
+                    SizedBox(width: 8.w),
+                    ChoiceChip(
+                      label: CustomText(
+                        text: 'Firebase',
+                        fontSize: 12.sp,
+                        color: _useFirebase ? Colors.white : null,
+                      ),
+                      selected: _useFirebase,
+                      selectedColor: brandNavy,
+                      onSelected: (_) =>
+                          setState(() => _useFirebase = true),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 24.h),
                 TextFormField(
                   controller: _usernameController,
-                  decoration: _fieldDecoration('Username'),
+                  decoration: _fieldDecoration(
+                    _useFirebase ? 'Email' : 'Username',
+                  ),
                   validator: (value) => (value == null || value.isEmpty)
-                      ? 'Username is required'
+                      ? (_useFirebase ? 'Email is required' : 'Username is required')
                       : null,
                 ),
                 SizedBox(height: 16.h),
@@ -152,6 +209,28 @@ class _SigninScreenState extends State<SigninScreen> {
                             ),
                     ),
                   ),
+                ),
+
+                SizedBox(height: 16.h),
+
+                // Navigate to sign-up
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CustomText(
+                      text: "Don't have an account? ",
+                      fontSize: 13.sp,
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(context, '/signup'),
+                      child: CustomText(
+                        text: 'Sign Up',
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.amber.shade800,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

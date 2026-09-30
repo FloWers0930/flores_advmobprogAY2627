@@ -1,16 +1,27 @@
 # Lawrenz Dave Z. Flores
 
-## INF233
+## INF233 MWA
 
-## CTADMOBL Advance Mobile Programming
+## CTADMOBL Advanced Mobile Programming
 
-A Flutter project focused on API integration, authentication, and displaying user data in a mobile application.
+This repository contains my Flutter laboratory activities for Advanced Mobile Programming. The project focuses on working with APIs, organizing Flutter code using models, services, providers, screens, and reusable widgets, and adding features that make the application more interactive.
 
-## Lab Activity 4
+---
 
-This activity focuses on connecting the Flutter app to an API and organizing the project using services, models, and screens. I implemented persistent authentication using `shared_preferences`, created a `UserService` for handling API requests, and added a `User` model for managing user information. The profile screen displays the saved user data, while the cart uses the user's `userId` to show the correct cart information.
+## Lab Activity 2: Discussion
 
-## Discussion
+For Lab Activity 2, I focused on improving the application's user interface and overall user experience. I implemented a search bar that filters the products retrieved from the API locally. I also built a detailed product screen that users can navigate to by tapping on any product card, displaying information like price, description, and ratings. Finally, I added a settings screen with a theme toggle (light/dark mode) managed via `ThemeProvider` to instantly change the app's appearance.
+
+---
+
+## Lab Activity 3: Discussion
+
+For Lab Activity 3, the main goal was to integrate a functional shopping cart feature. I created a dedicated Cart screen to display added products and their calculated subtotals. To keep the UI clean, I changed the Chat navigation from the bottom navigation bar into a FloatingActionButton. For the backend integration, I connected the app to the DummyJSON API's cart endpoints, specifically using the "Get Cart by User ID" and "Add to Cart" endpoints, managing the state dynamically with a `CartProvider`.
+
+---
+
+
+## Lab Activity 4: Discussion
 
 ### 1. API Integration & Architecture Separation
 The core objective of Lab Activity 4 was to introduce standard software architecture practices into the Flutter application—specifically separating business logic from UI components.
